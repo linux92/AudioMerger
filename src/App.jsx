@@ -20,21 +20,6 @@ export default function App() {
   const [isRestoring, setIsRestoring] = useState(true);
   const [saveStatus, setSaveStatus] = useState('saved');
   const [mobileTab, setMobileTab] = useState('trimmer'); // 'library' | 'trimmer' | 'timeline'
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth <= 1024;
-    }
-    return false;
-  });
-
-  // Track viewport width for bulletproof mobile switching
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth <= 1024);
-    }
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Object URLs to revoke on unmount
   const objectUrlsRef = useRef([]);
@@ -145,7 +130,7 @@ export default function App() {
   function handleSelectFile(file) {
     setSelectedFile(file);
     // On mobile, switch to trimmer tab when a file is picked
-    if (isMobile) {
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
       setMobileTab('trimmer');
     }
   }
@@ -238,30 +223,28 @@ export default function App() {
           </div>
         </div>
 
-        {!isMobile && (
-          <div className="header-stats-desktop">
-            <span>📁 {audioFiles.length} file{audioFiles.length !== 1 ? 's' : ''}</span>
-            <span>✂️ {clips.length} clip{clips.length !== 1 ? 's' : ''}</span>
+        <div className="header-stats-desktop">
+          <span>📁 {audioFiles.length} file{audioFiles.length !== 1 ? 's' : ''}</span>
+          <span>✂️ {clips.length} clip{clips.length !== 1 ? 's' : ''}</span>
 
-            {/* Persistent auto-save status indicator */}
-            <span
-              style={{
-                fontSize: 11,
-                padding: '2px 8px',
-                borderRadius: 4,
-                background: saveStatus === 'saving' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                color: saveStatus === 'saving' ? '#fbbf24' : '#34d399',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                fontFamily: 'monospace',
-              }}
-              title="Everything is automatically saved in your browser storage"
-            >
-              {saveStatus === 'saving' ? '⏳ Saving…' : '💾 Auto-saved'}
-            </span>
-          </div>
-        )}
+          {/* Persistent auto-save status indicator */}
+          <span
+            style={{
+              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 4,
+              background: saveStatus === 'saving' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+              color: saveStatus === 'saving' ? '#fbbf24' : '#34d399',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontFamily: 'monospace',
+            }}
+            title="Everything is automatically saved in your browser storage"
+          >
+            {saveStatus === 'saving' ? '⏳ Saving…' : '💾 Auto-saved'}
+          </span>
+        </div>
 
         <div className="header-controls">
           <button
@@ -284,94 +267,74 @@ export default function App() {
         </div>
       </header>
 
-      {/* ─── Mobile Navigation Tabs (visible only on mobile <= 1024px) ─── */}
-      {isMobile && (
-        <nav className="mobile-nav-bar" aria-label="Mobile Navigation" style={{ display: 'flex' }}>
-          <button
-            className={`mobile-nav-btn ${mobileTab === 'library' ? 'active' : ''}`}
-            onClick={() => setMobileTab('library')}
-          >
-            <span className="mobile-nav-icon">📁</span>
-            <span className="mobile-nav-label">Library</span>
-            {audioFiles.length > 0 && <span className="mobile-nav-badge">{audioFiles.length}</span>}
-          </button>
+      {/* ─── Mobile Navigation Tabs (visible only on <= 900px) ─── */}
+      <nav className="mobile-nav-bar" aria-label="Mobile Navigation">
+        <button
+          className={`mobile-nav-btn ${mobileTab === 'library' ? 'active' : ''}`}
+          onClick={() => setMobileTab('library')}
+        >
+          <span className="mobile-nav-icon">📁</span>
+          <span className="mobile-nav-label">Library</span>
+          {audioFiles.length > 0 && <span className="mobile-nav-badge">{audioFiles.length}</span>}
+        </button>
 
-          <button
-            className={`mobile-nav-btn ${mobileTab === 'trimmer' ? 'active' : ''}`}
-            onClick={() => setMobileTab('trimmer')}
-          >
-            <span className="mobile-nav-icon">✂️</span>
-            <span className="mobile-nav-label">Trimmer</span>
-            {selectedFile && <span className="mobile-nav-dot" />}
-          </button>
+        <button
+          className={`mobile-nav-btn ${mobileTab === 'trimmer' ? 'active' : ''}`}
+          onClick={() => setMobileTab('trimmer')}
+        >
+          <span className="mobile-nav-icon">✂️</span>
+          <span className="mobile-nav-label">Trimmer</span>
+          {selectedFile && <span className="mobile-nav-dot" />}
+        </button>
 
-          <button
-            className={`mobile-nav-btn ${mobileTab === 'timeline' ? 'active' : ''}`}
-            onClick={() => setMobileTab('timeline')}
-          >
-            <span className="mobile-nav-icon">📋</span>
-            <span className="mobile-nav-label">Story</span>
-            {clips.length > 0 && <span className="mobile-nav-badge accent">{clips.length}</span>}
-          </button>
-        </nav>
-      )}
+        <button
+          className={`mobile-nav-btn ${mobileTab === 'timeline' ? 'active' : ''}`}
+          onClick={() => setMobileTab('timeline')}
+        >
+          <span className="mobile-nav-icon">📋</span>
+          <span className="mobile-nav-label">Story</span>
+          {clips.length > 0 && <span className="mobile-nav-badge accent">{clips.length}</span>}
+        </button>
+      </nav>
 
       {/* ─── Main Content Layout (Desktop 3-Column / Mobile Single-Tab View) ─── */}
-      <main
-        className="app-main"
-        style={isMobile ? { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden' } : undefined}
-      >
+      <main className="app-main">
         {/* Column 1: Audio Library */}
-        {(!isMobile || mobileTab === 'library') && (
-          <div
-            className="panel panel-library"
-            style={isMobile ? { width: '100%', flex: 1, minHeight: 0, borderRight: 'none', overflowY: 'auto' } : undefined}
-          >
-            <AudioLibrary
-              audioFiles={audioFiles}
-              selectedFile={selectedFile}
-              onSelect={handleSelectFile}
-              onAddFiles={handleAddFiles}
-            />
-          </div>
-        )}
+        <div className={`panel panel-library ${mobileTab === 'library' ? 'tab-visible' : 'tab-hidden'}`}>
+          <AudioLibrary
+            audioFiles={audioFiles}
+            selectedFile={selectedFile}
+            onSelect={handleSelectFile}
+            onAddFiles={handleAddFiles}
+          />
+        </div>
 
         {/* Column 2: Audio Trimmer */}
-        {(!isMobile || mobileTab === 'trimmer') && (
-          <div
-            className="panel panel-trimmer"
-            style={isMobile ? { width: '100%', flex: 1, minHeight: 0, borderRight: 'none', overflowY: 'auto' } : { borderRight: '1px solid var(--border)' }}
-          >
-            <AudioTrimmer
-              audioFile={selectedFile}
-              audioFiles={audioFiles}
-              clips={clips}
-              onAddClip={handleAddClip}
-              onError={handleError}
-            />
-            {/* Story Script below trimmer */}
-            <StoryScript script={script} onScriptChange={setScript} />
-          </div>
-        )}
+        <div className={`panel panel-trimmer ${mobileTab === 'trimmer' ? 'tab-visible' : 'tab-hidden'}`} style={{ borderRight: '1px solid var(--border)' }}>
+          <AudioTrimmer
+            audioFile={selectedFile}
+            audioFiles={audioFiles}
+            clips={clips}
+            onAddClip={handleAddClip}
+            onError={handleError}
+          />
+          {/* Story Script below trimmer */}
+          <StoryScript script={script} onScriptChange={setScript} />
+        </div>
 
         {/* Column 3: Story Timeline */}
-        {(!isMobile || mobileTab === 'timeline') && (
-          <div
-            className="panel panel-timeline"
-            style={isMobile ? { width: '100%', flex: 1, minHeight: 0, borderRight: 'none', overflowY: 'auto' } : undefined}
-          >
-            <StoryTimeline
-              clips={clips}
-              audioFiles={audioFiles}
-              gapSeconds={gapSeconds}
-              onGapChange={setGapSeconds}
-              onDelete={handleDeleteClip}
-              onMoveUp={handleMoveUp}
-              onMoveDown={handleMoveDown}
-              onError={handleError}
-            />
-          </div>
-        )}
+        <div className={`panel panel-timeline ${mobileTab === 'timeline' ? 'tab-visible' : 'tab-hidden'}`}>
+          <StoryTimeline
+            clips={clips}
+            audioFiles={audioFiles}
+            gapSeconds={gapSeconds}
+            onGapChange={setGapSeconds}
+            onDelete={handleDeleteClip}
+            onMoveUp={handleMoveUp}
+            onMoveDown={handleMoveDown}
+            onError={handleError}
+          />
+        </div>
       </main>
 
       {/* ─── Error bar ─── */}
