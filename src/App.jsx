@@ -19,6 +19,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [saveStatus, setSaveStatus] = useState('saved');
+  const [mobileTab, setMobileTab] = useState('trimmer'); // 'library' | 'trimmer' | 'timeline'
 
   // Object URLs to revoke on unmount
   const objectUrlsRef = useRef([]);
@@ -125,6 +126,15 @@ export default function App() {
     setSaveStatus('saved');
   }
 
+  // ─── Select file handler (with mobile auto-tab switch) ───
+  function handleSelectFile(file) {
+    setSelectedFile(file);
+    // On mobile, switch to trimmer tab when a file is picked
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+      setMobileTab('trimmer');
+    }
+  }
+
   // ─── Import audio files ───
   const handleAddFiles = useCallback(async (files) => {
     const newEntries = files.map((file) => ({
@@ -213,40 +223,38 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--text-muted)' }}>
-            <span>📁 {audioFiles.length} file{audioFiles.length !== 1 ? 's' : ''}</span>
-            <span>✂️ {clips.length} clip{clips.length !== 1 ? 's' : ''}</span>
+        <div className="header-stats-desktop">
+          <span>📁 {audioFiles.length} file{audioFiles.length !== 1 ? 's' : ''}</span>
+          <span>✂️ {clips.length} clip{clips.length !== 1 ? 's' : ''}</span>
 
-            {/* Persistent auto-save status indicator */}
-            <span
-              style={{
-                fontSize: 11,
-                padding: '2px 8px',
-                borderRadius: 4,
-                background: saveStatus === 'saving' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                color: saveStatus === 'saving' ? '#fbbf24' : '#34d399',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                fontFamily: 'monospace',
-              }}
-              title="Everything is automatically saved in your browser storage"
-            >
-              {saveStatus === 'saving' ? '⏳ Saving…' : '💾 Auto-saved'}
-            </span>
-          </div>
+          {/* Persistent auto-save status indicator */}
+          <span
+            style={{
+              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 4,
+              background: saveStatus === 'saving' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+              color: saveStatus === 'saving' ? '#fbbf24' : '#34d399',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontFamily: 'monospace',
+            }}
+            title="Everything is automatically saved in your browser storage"
+          >
+            {saveStatus === 'saving' ? '⏳ Saving…' : '💾 Auto-saved'}
+          </span>
         </div>
 
-        <div className="header-controls" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="header-controls">
           <button
             id="clear-storage-btn"
-            className="btn btn-sm btn-danger"
+            className="btn btn-sm btn-danger header-btn-compact"
             onClick={handleNewProject}
             title="Delete all stored audio files and reset database"
             style={{ background: 'var(--danger-dim)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171' }}
           >
-            🗑️ Clear Data
+            🗑️ Clear
           </button>
 
           <ExportButton
@@ -259,20 +267,50 @@ export default function App() {
         </div>
       </header>
 
-      {/* ─── Main 3-column layout ─── */}
+      {/* ─── Mobile Navigation Tabs (visible only on <= 900px) ─── */}
+      <nav className="mobile-nav-bar" aria-label="Mobile Navigation">
+        <button
+          className={`mobile-nav-btn ${mobileTab === 'library' ? 'active' : ''}`}
+          onClick={() => setMobileTab('library')}
+        >
+          <span className="mobile-nav-icon">📁</span>
+          <span className="mobile-nav-label">Library</span>
+          {audioFiles.length > 0 && <span className="mobile-nav-badge">{audioFiles.length}</span>}
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${mobileTab === 'trimmer' ? 'active' : ''}`}
+          onClick={() => setMobileTab('trimmer')}
+        >
+          <span className="mobile-nav-icon">✂️</span>
+          <span className="mobile-nav-label">Trimmer</span>
+          {selectedFile && <span className="mobile-nav-dot" />}
+        </button>
+
+        <button
+          className={`mobile-nav-btn ${mobileTab === 'timeline' ? 'active' : ''}`}
+          onClick={() => setMobileTab('timeline')}
+        >
+          <span className="mobile-nav-icon">📋</span>
+          <span className="mobile-nav-label">Story</span>
+          {clips.length > 0 && <span className="mobile-nav-badge accent">{clips.length}</span>}
+        </button>
+      </nav>
+
+      {/* ─── Main Content Layout (Desktop 3-Column / Mobile Single-Tab View) ─── */}
       <main className="app-main">
         {/* Column 1: Audio Library */}
-        <div className="panel">
+        <div className={`panel panel-library ${mobileTab === 'library' ? 'tab-visible' : 'tab-hidden'}`}>
           <AudioLibrary
             audioFiles={audioFiles}
             selectedFile={selectedFile}
-            onSelect={setSelectedFile}
+            onSelect={handleSelectFile}
             onAddFiles={handleAddFiles}
           />
         </div>
 
         {/* Column 2: Audio Trimmer */}
-        <div className="panel" style={{ borderRight: '1px solid var(--border)' }}>
+        <div className={`panel panel-trimmer ${mobileTab === 'trimmer' ? 'tab-visible' : 'tab-hidden'}`} style={{ borderRight: '1px solid var(--border)' }}>
           <AudioTrimmer
             audioFile={selectedFile}
             audioFiles={audioFiles}
@@ -285,7 +323,7 @@ export default function App() {
         </div>
 
         {/* Column 3: Story Timeline */}
-        <div className="panel">
+        <div className={`panel panel-timeline ${mobileTab === 'timeline' ? 'tab-visible' : 'tab-hidden'}`}>
           <StoryTimeline
             clips={clips}
             audioFiles={audioFiles}
