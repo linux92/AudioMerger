@@ -195,18 +195,46 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
     });
   }
 
-  // ─── Canvas click to seek ───
-  function handleCanvasClick(e) {
+  // ─── Real-time Swipe / Drag Scrubbing on Waveform ───
+  const isDraggingRef = useRef(false);
+
+  function seekFromClientX(clientX) {
     if (!duration || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+    const x = clientX - rect.left;
     const frac = Math.max(0, Math.min(1, x / rect.width));
     const seekTime = parseFloat((frac * duration).toFixed(3));
+
+    setCurrentTime(seekTime);
+    setEndTime(seekTime);
+
     const audio = audioRef.current;
     if (audio) {
       audio.currentTime = seekTime;
-      setCurrentTime(seekTime);
+    }
+  }
+
+  function handlePointerDown(e) {
+    isDraggingRef.current = true;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    seekFromClientX(e.clientX);
+  }
+
+  function handlePointerMove(e) {
+    if (!isDraggingRef.current) return;
+    seekFromClientX(e.clientX);
+  }
+
+  function handlePointerUp(e) {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      seekFromClientX(e.clientX);
     }
   }
 
@@ -417,13 +445,19 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
       </div>
 
       <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* ─── DAW Waveform Canvas with Horizontal Zoom Scrolling ─── */}
+        {/* ─── DAW Waveform Canvas with Real-time Touch/Mouse Scrubbing ─── */}
         <div
           ref={containerRef}
           className="waveform-container"
-          onClick={handleCanvasClick}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           style={{
-            cursor: 'crosshair',
+            cursor: 'ew-resize',
+            touchAction: 'none',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
             overflowX: 'auto',
             overflowY: 'hidden',
             position: 'relative',
