@@ -1088,7 +1088,7 @@ body {
 }
 
 /* ─── Responsive Media Queries ─── */
-@media (min-width: 901px) {
+@media (min-width: 1025px) {
   .mobile-nav-bar {
     display: none !important;
   }
@@ -1097,7 +1097,7 @@ body {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .header-stats-desktop {
     display: none;
   }
