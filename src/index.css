@@ -279,9 +279,29 @@ body {
   .panel.tab-hidden, .panel.tab-visible {
     display: flex !important;
   }
+  .mobile-script-section {
+    display: none !important;
+  }
+  .desktop-script-container {
+    display: block !important;
+    margin-top: 10px;
+  }
+  .desktop-script-container .script-section {
+    border-top: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+  }
 }
 
 @media (max-width: 900px) {
+  .desktop-script-container {
+    display: none !important;
+  }
+  .mobile-script-section {
+    display: flex !important;
+    flex-direction: column;
+  }
   .header-stats-desktop {
     display: none;
   }

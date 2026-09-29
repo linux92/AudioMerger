@@ -338,9 +338,13 @@ export default function App() {
             clips={clips}
             onAddClip={handleAddClip}
             onError={handleError}
+            script={script}
+            onScriptChange={setScript}
           />
-          {/* Story Script below trimmer */}
-          <StoryScript script={script} onScriptChange={setScript} />
+          {/* Story Script below trimmer (Mobile view only - unchanged) */}
+          <div className="mobile-script-section">
+            <StoryScript script={script} onScriptChange={setScript} />
+          </div>
         </div>
 
         {/* Column 3: Story Timeline */}

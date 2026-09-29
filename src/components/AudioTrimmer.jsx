@@ -1,13 +1,14 @@
 // AudioTrimmer.jsx — Professional DAW-style audio trimmer with dynamic source slicing
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { drawWaveform, formatTime, sliceAudioBuffer, encodeWAV } from '../utils/audioUtils';
+import StoryScript from './StoryScript';
 
 const CHAR_COLORS = [
   'char-0', 'char-1', 'char-2', 'char-3',
   'char-4', 'char-5', 'char-6', 'char-7',
 ];
 
-export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddClip, onError }) {
+export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddClip, onError, script, onScriptChange }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const audioRef = useRef(null);
@@ -95,19 +96,27 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
     const container = containerRef.current;
     if (!canvas || !container || !workingBuffer) return;
 
-    const visibleWidth = container.clientWidth || 600;
+    const visibleWidth = container.clientWidth || 360;
     const totalWidth = Math.max(visibleWidth, Math.round(visibleWidth * zoom));
     const totalHeight = 120;
 
-    const dpr = window.devicePixelRatio || 1;
-    if (canvas.width !== totalWidth * dpr || canvas.height !== totalHeight * dpr) {
-      canvas.width = totalWidth * dpr;
-      canvas.height = totalHeight * dpr;
+    // Mobile GPU safety clamp: Adreno 616 (Realme 3 Pro) texture dimension limit is 4096px
+    const maxDimension = 4096;
+    const safeDpr = Math.min(
+      window.devicePixelRatio || 1,
+      Math.max(1, Math.floor(maxDimension / Math.max(1, totalWidth)))
+    );
+    const targetW = Math.min(maxDimension, Math.round(totalWidth * safeDpr));
+    const targetH = Math.round(totalHeight * safeDpr);
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
     }
 
     const ctx = canvas.getContext('2d');
     ctx.save();
-    ctx.scale(dpr, dpr);
+    ctx.scale(safeDpr, safeDpr);
 
     // 1. Draw DAW Waveform with Time Ruler
     drawWaveform(canvas, workingBuffer, totalWidth, totalHeight, zoom);
@@ -121,6 +130,17 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
 
   useEffect(() => {
     redrawCanvas();
+  }, [redrawCanvas]);
+
+  // Ensure canvas redraws when container resizes (e.g. mobile tab switch to trimmer on Realme 3 Pro)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => {
+      redrawCanvas();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
   }, [redrawCanvas]);
 
   // ─── Draw Playhead Overlay (Single Main Red Line) ───
@@ -629,6 +649,13 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
             ＋ Add Clip to Story
           </button>
         </div>
+
+        {/* Story Script reference attached directly below buttons on desktop screens */}
+        {script !== undefined && (
+          <div className="desktop-script-container">
+            <StoryScript script={script} onScriptChange={onScriptChange} />
+          </div>
+        )}
       </div>
     </div>
   );
