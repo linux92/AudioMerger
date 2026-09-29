@@ -463,41 +463,52 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Panel Header */}
-      <div className="panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div className={`audio-file-avatar ${CHAR_COLORS[colorIdx]}`} style={{ width: 22, height: 22, fontSize: 10 }}>
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-          <span className="panel-title" style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {displayName}
-          </span>
-          {fileClips.length > 0 && (
-            <span style={{ fontSize: 10, background: 'var(--accent-dim)', color: 'var(--accent-light)', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace' }}>
-              {fileClips.length} clip{fileClips.length > 1 ? 's' : ''} taken
+      <div className="panel-header" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <div className={`audio-file-avatar ${CHAR_COLORS[colorIdx]}`} style={{ width: 22, height: 22, fontSize: 10, flexShrink: 0 }}>
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <span className="panel-title" style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {displayName}
             </span>
-          )}
+            {fileClips.length > 0 && (
+              <span style={{ fontSize: 10, background: 'var(--accent-dim)', color: 'var(--accent-light)', padding: '1px 6px', borderRadius: 4, fontFamily: 'monospace', flexShrink: 0 }}>
+                {fileClips.length} clip{fileClips.length > 1 ? 's' : ''} taken
+              </span>
+            )}
+          </div>
+
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 }}>
+            Remaining: {formatTime(duration)}
+          </span>
         </div>
 
-        {/* ─── Zoom Controls: 1x, 2x, 4x, 8x, 10x, 12x ─── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: 'var(--bg-surface)', padding: '2px 4px', borderRadius: 6, border: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: 2 }}>Zoom:</span>
-          {[1, 2, 4, 8, 10, 12].map((z) => (
-            <button
-              key={z}
-              id={`zoom-btn-${z}x`}
-              className={`btn btn-sm ${zoom === z ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '2px 5px', height: 20, fontSize: 10, minWidth: 22, fontWeight: zoom === z ? 700 : 400 }}
-              onClick={() => handleZoomChange(z)}
-              title={`Zoom ${z}x`}
-            >
-              {z}x
-            </button>
-          ))}
+        {/* ─── Zoom Controls: 1x, 2x, 4x, 8x, 10x, 12x (Dedicated wrap-safe row) ─── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, flexShrink: 0 }}>Zoom:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            {[1, 2, 4, 8, 10, 12].map((z) => (
+              <button
+                key={z}
+                id={`zoom-btn-${z}x`}
+                className={`btn btn-sm ${zoom === z ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  padding: '2px 8px',
+                  height: 22,
+                  fontSize: 11,
+                  minWidth: 28,
+                  fontWeight: zoom === z ? 700 : 500,
+                  borderRadius: 4,
+                }}
+                onClick={() => handleZoomChange(z)}
+                title={`Zoom ${z}x`}
+              >
+                {z}x
+              </button>
+            ))}
+          </div>
         </div>
-
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-          Remaining: {formatTime(duration)}
-        </span>
       </div>
 
       <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
