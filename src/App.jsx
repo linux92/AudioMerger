@@ -181,6 +181,26 @@ export default function App() {
     }
   }, [selectedFile]);
 
+  // ─── Audio file deletion ───
+  function handleDeleteFile(fileId) {
+    const fileToDelete = audioFiles.find((af) => af.id === fileId);
+    if (fileToDelete?.objectUrl) {
+      URL.revokeObjectURL(fileToDelete.objectUrl);
+    }
+    setAudioFiles((prev) => {
+      const next = prev.filter((af) => af.id !== fileId);
+      if (selectedFile?.id === fileId) {
+        setSelectedFile(next.length > 0 ? next[0] : null);
+      }
+      return next;
+    });
+    setClips((prev) =>
+      prev.filter(
+        (c) => c.sourceFileId !== fileId && c.sourceFileName !== fileToDelete?.file?.name
+      )
+    );
+  }
+
   // ─── Clip management ───
   function handleAddClip(clip) {
     setClips((prev) => [...prev, clip]);
@@ -306,6 +326,7 @@ export default function App() {
             selectedFile={selectedFile}
             onSelect={handleSelectFile}
             onAddFiles={handleAddFiles}
+            onDeleteFile={handleDeleteFile}
           />
         </div>
 

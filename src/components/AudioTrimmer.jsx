@@ -9,6 +9,7 @@ const CHAR_COLORS = [
 
 export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddClip, onError }) {
   const canvasRef = useRef(null);
+  const needleCanvasRef = useRef(null);
   const containerRef = useRef(null);
   const audioRef = useRef(null);
   const waveformDrawnRef = useRef(false);
@@ -22,7 +23,7 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [zoom, setZoom] = useState(1); // 1x, 2x, 4x, 8x
+  const [zoom, setZoom] = useState(1); // 1x, 2x, 4x, 8x, 10x, 12x
   const [workingUrl, setWorkingUrl] = useState(null);
 
   // Clips associated with this specific audio file
@@ -89,8 +90,8 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
     ? audioFiles.findIndex((af) => af.id === audioFile.id) % CHAR_COLORS.length
     : 0;
 
-  // ─── Render Waveform & Selection Overlays with Zoom ───
-  const redrawCanvas = useCallback(() => {
+  // ─── 1. Render Static DAW Waveform Canvas (Cached, recomputed only on buffer/zoom/resize) ───
+  const redrawWaveform = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container || !workingBuffer) return;
@@ -100,28 +101,66 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
     const totalHeight = 120;
 
     const dpr = window.devicePixelRatio || 1;
-    if (canvas.width !== totalWidth * dpr || canvas.height !== totalHeight * dpr) {
-      canvas.width = totalWidth * dpr;
-      canvas.height = totalHeight * dpr;
+    const targetW = Math.round(totalWidth * dpr);
+    const targetH = Math.round(totalHeight * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
     }
 
     const ctx = canvas.getContext('2d');
     ctx.save();
     ctx.scale(dpr, dpr);
-
-    // 1. Draw DAW Waveform with Time Ruler
     drawWaveform(canvas, workingBuffer, totalWidth, totalHeight, zoom);
-
-    // 2. Draw Selection Overlays & Playhead Needle
-    drawSelectionOverlay(ctx, totalWidth, totalHeight, startTime, endTime, duration, currentTime);
-
     ctx.restore();
     waveformDrawnRef.current = true;
-  }, [workingBuffer, startTime, endTime, duration, currentTime, zoom]);
+  }, [workingBuffer, zoom]);
+
+  // ─── 2. Render Playhead Needle (Ultra-lightweight 120Hz Overlay Canvas) ───
+  const redrawNeedle = useCallback(() => {
+    const canvas = needleCanvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container || !duration) return;
+
+    const visibleWidth = container.clientWidth || 600;
+    const totalWidth = Math.max(visibleWidth, Math.round(visibleWidth * zoom));
+    const totalHeight = 120;
+
+    const dpr = window.devicePixelRatio || 1;
+    const targetW = Math.round(totalWidth * dpr);
+    const targetH = Math.round(totalHeight * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    drawSelectionOverlay(ctx, totalWidth, totalHeight, startTime, endTime, duration, currentTime);
+    ctx.restore();
+  }, [zoom, duration, startTime, endTime, currentTime]);
 
   useEffect(() => {
-    redrawCanvas();
-  }, [redrawCanvas]);
+    redrawWaveform();
+  }, [redrawWaveform]);
+
+  useEffect(() => {
+    redrawNeedle();
+  }, [redrawNeedle]);
+
+  // Handle container resizing smoothly
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => {
+      redrawWaveform();
+      redrawNeedle();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [redrawWaveform, redrawNeedle]);
 
   // ─── Draw Playhead Overlay (Single Main Red Line) ───
   function drawSelectionOverlay(ctx2d, w, h, s, e, dur, cur) {
@@ -149,25 +188,42 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
     }
   }
 
+  // ─── 120Hz Native Refresh-Rate Playback Loop ───
+  useEffect(() => {
+    if (!isPlaying) return;
+    let animId;
+    function playbackTick() {
+      const audio = audioRef.current;
+      if (audio && !audio.paused) {
+        const cur = audio.currentTime;
+        setCurrentTime(cur);
+
+        // Keep playhead visible smoothly when zoomed in
+        if (zoom > 1 && containerRef.current && duration > 0) {
+          const container = containerRef.current;
+          const visibleWidth = container.clientWidth;
+          const totalWidth = visibleWidth * zoom;
+          const playheadX = (cur / duration) * totalWidth;
+          const scrollL = container.scrollLeft;
+
+          if (playheadX > scrollL + visibleWidth - 60 || playheadX < scrollL + 20) {
+            container.scrollLeft = Math.max(0, playheadX - visibleWidth / 2);
+          }
+        }
+        animId = requestAnimationFrame(playbackTick);
+      }
+    }
+    animId = requestAnimationFrame(playbackTick);
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [isPlaying, zoom, duration]);
+
   // ─── HTML audio element event handlers ───
   function handleTimeUpdate() {
     const audio = audioRef.current;
     if (!audio) return;
-    const cur = audio.currentTime;
-    setCurrentTime(cur);
-
-    // Auto-scroll container to keep playhead visible when zoomed in
-    if (zoom > 1 && containerRef.current && duration > 0) {
-      const container = containerRef.current;
-      const visibleWidth = container.clientWidth;
-      const totalWidth = visibleWidth * zoom;
-      const playheadX = (cur / duration) * totalWidth;
-      const scrollL = container.scrollLeft;
-
-      if (playheadX > scrollL + visibleWidth - 60 || playheadX < scrollL + 20) {
-        container.scrollLeft = Math.max(0, playheadX - visibleWidth / 2);
-      }
-    }
+    setCurrentTime(audio.currentTime);
   }
 
   function handleAudioEnded() {
@@ -422,15 +478,15 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
           )}
         </div>
 
-        {/* ─── Zoom Controls: 1x, 2x, 4x, 8x ─── */}
+        {/* ─── Zoom Controls: 1x, 2x, 4x, 8x, 10x, 12x ─── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: 'var(--bg-surface)', padding: '2px 4px', borderRadius: 6, border: '1px solid var(--border)' }}>
           <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', marginRight: 2 }}>Zoom:</span>
-          {[1, 2, 4, 8].map((z) => (
+          {[1, 2, 4, 8, 10, 12].map((z) => (
             <button
               key={z}
               id={`zoom-btn-${z}x`}
               className={`btn btn-sm ${zoom === z ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '2px 6px', height: 20, fontSize: 10, minWidth: 24, fontWeight: zoom === z ? 700 : 400 }}
+              style={{ padding: '2px 5px', height: 20, fontSize: 10, minWidth: 22, fontWeight: zoom === z ? 700 : 400 }}
               onClick={() => handleZoomChange(z)}
               title={`Zoom ${z}x`}
             >
@@ -467,39 +523,35 @@ export default function AudioTrimmer({ audioFile, audioFiles, clips = [], onAddC
             boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.5)',
           }}
         >
-          <canvas
-            ref={canvasRef}
-            className="waveform-canvas"
+          <div
             style={{
-              height: 120,
-              display: 'block',
+              position: 'relative',
               width: `${zoom * 100}%`,
               minWidth: '100%',
+              height: 120,
             }}
-          />
-          {zoom > 1 && (
-            <div
+          >
+            <canvas
+              ref={canvasRef}
+              className="waveform-canvas"
               style={{
-                position: 'sticky',
-                left: 8,
-                bottom: 4,
-                display: 'inline-flex',
-                alignItems: 'center',
-                background: 'rgba(10, 13, 20, 0.85)',
-                border: '1px solid var(--border)',
-                padding: '2px 6px',
-                borderRadius: 4,
-                fontSize: 10,
-                color: 'var(--accent-light)',
-                fontFamily: 'JetBrains Mono, monospace',
-                pointerEvents: 'none',
-                width: 'fit-content',
-                marginTop: -20,
+                height: 120,
+                display: 'block',
+                width: '100%',
               }}
-            >
-              🔍 {zoom}x Zoom • Scroll to pan
-            </div>
-          )}
+            />
+            <canvas
+              ref={needleCanvasRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                height: 120,
+                width: '100%',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
         </div>
 
         {/* Hidden HTML audio element for main playback of remaining audio */}

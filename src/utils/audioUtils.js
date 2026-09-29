@@ -258,9 +258,10 @@ export function drawWaveform(canvas, buffer, customWidth, customHeight, zoom = 1
     const startSample = b * samplesPerBar;
     const endSample = Math.min(startSample + samplesPerBar, data.length);
 
+    const step = Math.max(1, Math.floor(samplesPerBar / 64));
     let min = 1.0;
     let max = -1.0;
-    for (let j = startSample; j < endSample; j++) {
+    for (let j = startSample; j < endSample; j += step) {
       const datum = data[j] || 0;
       if (datum < min) min = datum;
       if (datum > max) max = datum;

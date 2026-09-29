@@ -15,7 +15,7 @@ function getDisplayName(fileName) {
   return fileName.replace(/\.[^/.]+$/, '');
 }
 
-export default function AudioLibrary({ audioFiles, selectedFile, onSelect, onAddFiles }) {
+export default function AudioLibrary({ audioFiles, selectedFile, onSelect, onAddFiles, onDeleteFile }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -135,6 +135,21 @@ export default function AudioLibrary({ audioFiles, selectedFile, onSelect, onAdd
                     >
                       Edit
                     </button>
+                    {onDeleteFile && (
+                      <button
+                        className="btn btn-sm btn-danger"
+                        id={`delete-audio-btn-${af.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteFile(af.id);
+                        }}
+                        title="Delete audio file"
+                        aria-label="Delete audio file"
+                        style={{ padding: '4px 8px' }}
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
                 </div>
               );
